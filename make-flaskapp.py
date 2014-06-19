@@ -171,16 +171,16 @@ app = Flask(__name__)
 app.config.from_object('{{ package_name }}.settings')
 
 import {{ package_name }}.views
-from {{ package_name }}.blueprint import blueprint
+from {{ package_name }}.{{ blueprint }} import {{ blueprint }}
 
 
-app.register_blueprint(blueprint, url_prefix='/blueprint')
+app.register_blueprint({{ blueprint }}, url_prefix='/{{ blueprint }}')
 ''')
 BLUEPRINT_TEMPLATE = Template(u'''\
 # -*- coding: utf-8 -*-
 """
-    {{ module }}.blueprint
-    {{ '~' * module|length }}~~~~~~~~~~
+    {{ module }}.{{ blueprint }}
+    {{ '~' * module|length }}~{{ '~' * blueprint|length }}
 
     Description of the blueprint goes here...
 
@@ -188,12 +188,12 @@ BLUEPRINT_TEMPLATE = Template(u'''\
     :license: {{ license }}, see LICENSE for more details.
 """
 from flask import Blueprint
-blueprint = Blueprint('blueprint', __name__)
+{{ blueprint }} = Blueprint('{{ blueprint }}', __name__)
 
 
-@blueprint.route('/')
+@{{ blueprint }}.route('/')
 def index():
-    return 'Hello, blueprint!'
+    return 'Hello, {{ blueprint }}!'
 ''')
 APP_VIEW_TEMPLATE = Template(u'''\
 # -*- coding: utf-8 -*-
@@ -277,9 +277,10 @@ def prompt_choices(name, choices):
 
 class Application(object):
 
-    def __init__(self, name, author, output_folder, vcs, vcs_host, license,
-                 with_sphinx, sphinx_theme):
+    def __init__(self, name, blueprint_name, author, output_folder, vcs,
+                 vcs_host, license, with_sphinx, sphinx_theme):
         self.name = name
+        self.blueprint_name = blueprint_name.lower()
         self.author = author
         self.output_folder = output_folder
         self.vcs = vcs
@@ -292,7 +293,7 @@ class Application(object):
     def make_folder(self):
         os.makedirs(os.path.join(self.output_folder, self.package_name))
         os.makedirs(os.path.join(self.output_folder, self.package_name, 
-                    'blueprint'))
+                    self.blueprint_name))
         os.makedirs(os.path.join(self.output_folder, self.package_name, 
                     'static'))
         os.makedirs(os.path.join(self.output_folder, self.package_name, 
@@ -322,7 +323,7 @@ class Application(object):
                 license=self.license
             ).encode('utf-8') + '\n')
         with open(os.path.join(self.output_folder, 'requirements.txt'), 'w') \
-                as f:
+            as f:
             f.write('Flask\n')
         with open(os.path.join(self.output_folder, 'fire.py'), 'w') as f:
             f.write(FIRE_PY_TEMPLATE.render(
@@ -332,24 +333,26 @@ class Application(object):
                 package_name=self.package_name
             ).encode('utf-8') + '\n')
         with open(os.path.join(self.output_folder, self.package_name,
-                               '__init__.py'), 'w') as f:
+                  '__init__.py'), 'w') as f:
             f.write(APPLICATION_TEMPLATE.render(
                 module=self.package_name,
+                blueprint=self.blueprint_name,
                 year=datetime.utcnow().year,
                 name=self.author,
                 license=self.license,
                 package_name=self.package_name
             ).encode('utf-8') + '\n')
         with open(os.path.join(self.output_folder, self.package_name,
-                          'blueprint', '__init__.py'), 'w') as f:
+                  self.blueprint_name, '__init__.py'), 'w') as f:
             f.write(BLUEPRINT_TEMPLATE.render(
                 module=self.package_name,
+                blueprint=self.blueprint_name,
                 year=datetime.utcnow().year,
                 name=self.author,
                 license=self.license
             ).encode('utf-8') + '\n')
         with open(os.path.join(self.output_folder, self.package_name,
-                               'views.py'), 'w') as f:
+                  'views.py'), 'w') as f:
             f.write(APP_VIEW_TEMPLATE.render(
                 module=self.package_name,
                 year=datetime.utcnow().year,
@@ -358,7 +361,7 @@ class Application(object):
                 package_name=self.package_name
             ).encode('utf-8') + '\n')
         with open(os.path.join(self.output_folder, self.package_name,
-                               'settings.py'), 'w') as f:
+                  'settings.py'), 'w') as f:
             f.write(SETTINGS_TEMPLATE.render(
                 module=self.package_name,
                 year=datetime.utcnow().year,
@@ -416,6 +419,7 @@ def main():
     print
 
     name = prompt('Application Name')
+    blueprint_name = prompt('Blueprint Name', default='blueprint')
     author = prompt('Author', default=getpass.getuser())
     license_rv = prompt_choices('License', ('bsd', 'mit', 'none'))
     if license_rv == 'bsd':
@@ -450,8 +454,8 @@ def main():
             break
     output_folder = os.path.abspath(folder)
 
-    app = Application(name, author, output_folder, vcs, vcs_host, license,
-                      use_sphinx, sphinx_theme)
+    app = Application(name, blueprint_name, author, output_folder, vcs,
+                      vcs_host, license, use_sphinx, sphinx_theme)
     app.make_folder()
     app.create_files()
     app.init_sphinx()
